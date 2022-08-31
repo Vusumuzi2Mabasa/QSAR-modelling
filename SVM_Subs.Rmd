@@ -1,0 +1,112 @@
+---
+title: "Untitled"
+author: "Vee Mabasa"
+date: "2022-08-02"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ggpubr)
+library(kernlab)
+```
+
+```{r}
+library(readxl)
+TB_Subs_xlsx <- read_excel("C:/Users/VUSI/Downloads/TB-Subs-xlsx.xlsx")
+View(TB_Subs_xlsx)
+```
+
+```{r}
+  # which(sapply(TB_cytotoxicity_csv, function(x)
+#length(x)<2))
+```
+
+
+```{r}
+df_train <- TB_Subs_xlsx %>% select(where(~n_distinct(.)>1))
+df_train
+```
+
+
+```{r}
+head(df_train)
+```
+
+
+#performstratified random split of the dataset
+```{r}
+set.seed(100)
+
+TrainingIndex <- createDataPartition(df_train[['Class']], p=0.8, list = F)
+Trainingset <- df_train[TrainingIndex,]
+Testingset <- df_train[-TrainingIndex,]
+```
+
+```{r}
+df_train2 <- Trainingset %>% select(where(~n_distinct(.)>1))
+df_train2
+```
+
+```{r}
+df_train3 <- Testingset %>% select(where(~n_distinct(.)>1))
+df_train3
+```
+
+
+#Build training model
+```{r}
+model.training <- train(Class ~.,data = na.omit(df_train2), method = "svmPoly",
+              preProcess=c("scale", "center"), trControl= trainControl(method = "none"),
+              tuneGrid= data.frame(degree=1 , scale=1, C=1))
+```
+
+```{r}
+model.testing <- train(Class ~.,data = df_train3, method = "svmPoly",
+              preProcess=c("scale", "center"), trControl= trainControl(method = "none"),
+              tuneGrid= data.frame(degree=1 , scale=1, C=1))
+```
+
+
+#Build CV model
+```{r}
+model.cv <- train(Class ~., data = na.omit(df_train2), method ="svmPoly",
+                  preProcess = c("scale", "center"), trControl= trainControl(method = "cv",number = 10),
+                  tuneGrid= data.frame(degree=1, scale=1, C=1))
+```
+
+
+#Apply mode for prediction
+```{r}
+model.training <- predict(model.training, df_train2)
+model.testing <- predict(model.testing, df_train3)
+model.cv <- predict(model.cv, df_train2)
+```
+
+
+#model performance (display confusion matrix and statistics)
+```{r}
+model.training.confusion <- confusionMatrix(model.training, as.factor (df_train2[['Class']]))
+model.testing.confusion <- confusionMatrix(model.testing, as.factor(df_train3[['Class']]))
+model.cv.confusion <- confusionMatrix(model.cv, as.factor (df_train2[['Class']]))
+```
+
+
+# Print models
+```{r}
+print(model.training.confusion)
+print(model.testing.confusion)
+print(model.cv.confusion)
+```
+
+
+#feature importance
+```{r}
+importance <- varImp(model.training) 
+importance
+```
+
+```{r}
+plot(importance)
+```

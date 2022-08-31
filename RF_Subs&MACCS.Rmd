@@ -1,0 +1,120 @@
+---
+title: "RF_fingerprints"
+author: "Vee Mabasa"
+date: "2022-08-01"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ggpubr)
+library(kernlab)
+library(randomForest)
+library(pROC)
+```
+
+```{r}
+library(readxl)
+TB_cytotoxicity_csv <- read_excel("C:/Users/VUSI/Downloads/TB-cytotoxicity-csv.xlsx")
+TB_cytotoxicity_csv
+
+```
+
+```{r}
+   #which(sapply(TB_cytotoxicity_csv, function(x)
+#length(x)<2))
+```
+
+
+```{r}
+df_train <- TB_cytotoxicity_csv %>% select(where(~n_distinct(.)>1))
+df_train
+```
+
+```{r}
+df_train[['Class']] <- as.factor(df_train[['Class']])
+df_train
+```
+
+
+```{r}
+head(df_train)
+```
+
+
+#performstratified random split of the dataset
+```{r}
+set.seed(100)
+
+TrainingIndex <- createDataPartition(df_train[['Class']], p=0.8, list = F)
+Trainingset <- df_train[TrainingIndex,]
+Testingset <- df_train[-TrainingIndex,]
+```
+
+```{r}
+df_train2 <- Trainingset %>% select(where(~n_distinct(.)>1))
+df_train2
+```
+```{r}
+df_train3 <- Testingset %>% select(where(~n_distinct(.)>1))
+df_train3
+```
+
+
+
+#Build training model
+```{r}
+model.training <-randomForest(Class ~ ., data = df_train2, ntree = 100, mtry = 4, importance = TRUE)
+
+```
+
+#Buld testing set
+```{r}
+model.testing <- randomForest(Class ~ ., data = df_train3, ntree = 100, mtry = 4, importance = T )
+```
+
+#Build CV model
+```{r}
+model.cv <- randomForest(Class ~ ., data = df_train2, ntree = 100, mtry = 4, importance = TRUE,trControl= trainControl(method = "cv",number = 10) )
+```
+
+
+#Apply mode for prediction
+```{r}
+model.training <- predict(model.training, df_train2)
+model.testing <- predict(model.testing, df_train3)
+model.cv <- predict(model.cv, df_train2)
+```
+
+
+#model performance (display confusion matrix and statistics)
+```{r}
+model.training.confusion <- confusionMatrix(model.training, as.factor (df_train2[['Class']]))
+model.testing.confusion <- confusionMatrix(model.testing, as.factor(df_train3[['Class']]))
+model.cv.confusion <- confusionMatrix(model.cv, as.factor (df_train2[['Class']]))
+```
+
+
+# Print models
+```{r}
+print(model.training.confusion)
+print(model.testing.confusion)
+print(model.cv.confusion)
+```
+
+```{r}
+auc(df_train3[["Class"]], predictor= factor(model.testing, ordered= T), plot=T)
+```
+
+
+#feature importance
+```{r}
+importance <- varImp(model.training, conditional=T) 
+importance
+```
+
+```{r}
+plot(importance)
+```
+

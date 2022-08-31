@@ -1,0 +1,93 @@
+---
+title: "Random forest"
+author: "Vee Mabasa"
+date: '2022-07-30'
+output: html_document
+---
+
+```{r}
+library(caret)
+library(tidyverse)
+library(randomForest)
+```
+
+```{r}
+
+library(readxl)
+TB_cytotoxicity <- read_excel("G:/My Drive/Colab Notebooks/dataTB1/TB_cytotoxicity.xlsx", 
+    range = "a2:e132")
+View(TB_cytotoxicity)
+```
+
+```{r}
+TB_cytotoxicity[['Class']] <- as.factor(TB_cytotoxicity[['Class']])
+TB_cytotoxicity[['MW']] <- as.numeric(TB_cytotoxicity[['MW']])
+TB_cytotoxicity[["LogP"]] <- as.numeric(TB_cytotoxicity[["LogP"]])
+TB_cytotoxicity[['NumHDonors']] <- as.numeric(TB_cytotoxicity[["NumHDonors"]])
+TB_cytotoxicity[["NumHAcceptors"]] <- as.numeric(TB_cytotoxicity[["NumHAcceptors"]])
+View(TB_cytotoxicity)
+```
+
+
+
+```{r}
+TB_cytotoxicity <- data.frame(as.list(TB_cytotoxicity))
+TB_cytotoxicity
+```
+
+
+#performstratified random split of the dataset
+```{r}
+
+set.seed(100)
+
+TrainingIndex <- createDataPartition(TB_cytotoxicity[['Class']], p=0.8, list = FALSE)
+Trainingset <- TB_cytotoxicity[TrainingIndex,]
+Testingset <- TB_cytotoxicity[-TrainingIndex,]
+```
+
+
+
+#Build training model
+```{r}
+
+model <- randomForest(Class ~ ., data = Trainingset, ntree = 100, mtry = 4, importance = TRUE)
+
+```
+
+```{r}
+model.cv <- randomForest(Class ~ ., data = Trainingset, ntree = 100, mtry = 4, importance = TRUE,trControl= trainControl(method = "cv",number = 10) )
+```
+
+```{r}
+model.training <- predict(model, Trainingset)
+model.testing <- predict(model, Testingset)
+model.cv <- predict(model.cv, Trainingset)
+```
+
+
+#model performance (display confusion matrix and statistics)
+```{r}
+model.training.confusion <- confusionMatrix(model.training, Trainingset[['Class']])
+model.testing.confusion <- confusionMatrix(model.testing, Testingset[['Class']])
+model.cv.confusion <- confusionMatrix(model.cv, Trainingset[['Class']])
+```
+
+
+# Print models
+```{r}
+print(model.training.confusion)
+print(model.testing.confusion)
+print(model.cv.confusion)
+```
+
+
+#feature importance
+```{r}
+importance <- varImp(model)
+importance
+```
+
+```{r}
+plot(importance)
+```

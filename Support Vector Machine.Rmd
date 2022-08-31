@@ -1,0 +1,105 @@
+---
+title: "Machine learning"
+author: "Vee Mabasa"
+date: '2022-06-27'
+output: word_document
+---
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ggpubr)
+library(kernlab)
+```
+
+```{r}
+
+library(readxl)
+TB_cytotoxicity <- read_excel("G:/My Drive/Colab Notebooks/dataTB1/TB_cytotoxicity.xlsx", 
+    range = "a2:e132")
+View(TB_cytotoxicity)
+```
+
+
+```{r}
+TB_cytotoxicity[['Class']] <- as.factor(TB_cytotoxicity[['Class']])
+TB_cytotoxicity[['MW']] <- as.numeric(TB_cytotoxicity[['MW']])
+TB_cytotoxicity[["LogP"]] <- as.numeric(TB_cytotoxicity[["LogP"]])
+TB_cytotoxicity[['NumHDonors']] <- as.numeric(TB_cytotoxicity[["NumHDonors"]])
+TB_cytotoxicity[["NumHAcceptors"]] <- as.numeric(TB_cytotoxicity[["NumHAcceptors"]])
+View(TB_cytotoxicity)
+```
+
+```{r}
+TB_cytotoxicity <- data.frame(as.list(TB_cytotoxicity))
+TB_cytotoxicity
+```
+
+
+#performstratified random split of the dataset
+```{r}
+
+set.seed(100)
+
+TrainingIndex <- createDataPartition(TB_cytotoxicity[['Class']], p=0.8, list = FALSE)
+Trainingset <- TB_cytotoxicity[TrainingIndex,]
+Testingset <- TB_cytotoxicity[-TrainingIndex,]
+```
+
+
+
+#Build training model
+```{r}
+
+model <-train(Class ~.,data = Trainingset, method = "svmPoly",
+              preProcess=c("scale", "center"), trControl= trainControl(method = "none"),
+              tuneGrid= data.frame(degree=1 , scale=1, C=1))
+1
+```
+
+
+#Build CV model
+```{r}
+model.cv <- train(Class ~., data = Trainingset, method ="svmPoly",
+                  preProcess = c("scale", "center"), trControl= trainControl(method = "cv",number = 10),
+                  tuneGrid= data.frame(degree=1, scale=1, C=1))
+```
+
+
+#Apply mode for prediction
+```{r}
+model.training <- predict(model, Trainingset)
+model.testing <- predict(model, Testingset)
+model.cv <- predict(model.cv, Trainingset)
+```
+
+
+#model performance (display confusion matrix and statistics)
+```{r}
+model.training.confusion <- confusionMatrix(model.training, Trainingset[['Class']])
+model.testing.confusion <- confusionMatrix(model.testing, Testingset[['Class']])
+model.cv.confusion <- confusionMatrix(model.cv, Trainingset[['Class']])
+```
+
+
+# Print models
+```{r}
+print(model.training.confusion)
+print(model.testing.confusion)
+print(model.cv.confusion)
+```
+
+
+#feature importance
+```{r}
+importance <- varImp(model)
+importance
+```
+
+```{r}
+plot(importance)
+```
+
+```{r}
+saveRDS(model, "model.rds")
+```
